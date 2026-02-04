@@ -31,7 +31,7 @@ An AI-powered personal knowledge system and task manager. Dump unstructured thou
 
 ```
 apps/
-  app/             # React Native (Expo) — iOS, Android, web
+  client/          # React Native (Expo) — iOS, Android, web
   server/          # Hono API entry point
 packages/
   core/            # Shared types, Zod schemas
