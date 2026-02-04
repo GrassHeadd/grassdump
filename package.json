@@ -1,5 +1,5 @@
 {
-  "name": "grassnote",
+  "name": "grassdump",
   "private": true,
   "scripts": {
     "build": "turbo run build",

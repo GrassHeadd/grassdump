@@ -1,4 +1,4 @@
-# BrainDump
+# Grassdump
 
 An AI-powered task manager with a brain dump feature. Capture tasks via natural language, and dump random thoughts to search later.
 
