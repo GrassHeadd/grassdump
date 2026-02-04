@@ -39,3 +39,7 @@ yarn-error.log*
 
 # Personal
 learning/
+
+# Claude Code
+.claude/
+.agents/

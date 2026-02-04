@@ -31,10 +31,10 @@ An AI-powered personal knowledge system and task manager. You dump unstructured 
 - **Database:** PostgreSQL (Neon) + pgvector — structured storage + vector embeddings for semantic search
 - **ORM:** Drizzle ORM
 - **AI/LLM:** OpenAI API for NLU parsing + embeddings generation. Claude as alternative for reasoning.
-- **Auth:** Clerk
+- **Auth:** Better Auth (portable, no vendor lock-in)
 - **Jobs:** Inngest or BullMQ (async embedding generation, reminders)
 - **Monorepo:** Turborepo
-- **Infra:** Docker, Railway or Fly.io
+- **Infra:** Vercel (server) + Neon (database), Terraform for IaC
 
 ### High-level flow
 ```
