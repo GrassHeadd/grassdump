@@ -1,4 +1,4 @@
-# BrainDump (working title)
+# GrassDump
 
 ## One-liner
 An AI-powered personal knowledge system and task manager. You dump unstructured thoughts via text/voice, AI parses and stores them as structured notes, and you can search your own memory semantically.
