@@ -10,6 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@repo/core": "workspace:*",
+    "@repo/db": "workspace:*",
     "openai": "^6.17.0"
   }
 }
