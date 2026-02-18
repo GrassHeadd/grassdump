@@ -51,7 +51,8 @@ export async function captureNote(
       status: classification.type === "todo" ? "pending" : null,
       list: item.list?.toLowerCase().trim() ?? null,
       dueAt,
-      priority: item.priority ?? (classification.type === "todo" ? "normal" : null),
+      priority:
+        item.priority ?? (classification.type === "todo" ? "normal" : null),
     });
 
     createdNotes.push(note);
@@ -65,7 +66,11 @@ export async function captureNote(
 // ============================================================
 // User taps "Actually a task" or "Actually a dump" — re-parse with forced type.
 
-export async function flipNoteType(noteId: string, newType: NoteType, timezone: string = "UTC") {
+export async function flipNoteType(
+  noteId: string,
+  newType: NoteType,
+  timezone: string = "UTC",
+) {
   const existing = await getNoteById(noteId);
   if (!existing) throw new Error("Note not found");
 
@@ -93,7 +98,11 @@ export async function flipNoteType(noteId: string, newType: NoteType, timezone: 
 // SEARCH
 // ============================================================
 
-export async function search(userId: string, query: string, limit: number = 10) {
+export async function search(
+  userId: string,
+  query: string,
+  limit: number = 10,
+) {
   const queryEmbedding = await generateEmbedding(query);
   return dbSearch(userId, queryEmbedding, limit);
 }
@@ -113,8 +122,7 @@ export async function getTodayView(userId: string) {
   return { overdue, today, upcoming, recentDumps };
 }
 
-export { getDumpFeed } from "@repo/db";
-export { getDistinctLists } from "@repo/db";
+export { getDumpFeed, getDistinctLists };
 
 // ============================================================
 // ACTIONS

@@ -1,7 +1,7 @@
 import { zodResponseFormat } from "openai/helpers/zod";
 import { classificationResponseSchema } from "@repo/core";
 import type { ClassificationResponse } from "@repo/core";
-import { openai } from "./client";
+import { getOpenAI } from "./client";
 
 const SYSTEM_PROMPT = `You are a personal task assistant. The user will send you a raw thought, reminder, or note.
 
@@ -30,13 +30,16 @@ Rules:
 export async function classifyAndParse(
   rawInput: string,
 ): Promise<ClassificationResponse> {
-  const completion = await openai.chat.completions.parse({
+  const completion = await getOpenAI().chat.completions.parse({
     model: "gpt-5.2",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: rawInput },
     ],
-    response_format: zodResponseFormat(classificationResponseSchema, "classification"),
+    response_format: zodResponseFormat(
+      classificationResponseSchema,
+      "classification",
+    ),
   });
 
   const parsed = completion.choices[0]!.message.parsed;

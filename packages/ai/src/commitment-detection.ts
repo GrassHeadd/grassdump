@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { openai } from "./client";
+import { getOpenAI } from "./client";
 
 const commitmentResultSchema = z.object({
   hasCommitment: z.boolean(),
@@ -27,7 +27,7 @@ export async function detectCommitment(
   summary: string,
   rawInput: string,
 ): Promise<CommitmentResult> {
-  const completion = await openai.chat.completions.parse({
+  const completion = await getOpenAI().chat.completions.parse({
     model: "gpt-5.2",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
