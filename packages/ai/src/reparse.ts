@@ -13,8 +13,8 @@ export async function reparseAsType(
 ): Promise<ClassificationResponse> {
   const prompt =
     forcedType === "todo"
-      ? `The user wants this treated as a todo. Extract the task details: summary, due date expression (if any), list category (if obvious), and priority. Always return type "todo".`
-      : `The user wants this treated as a dump (just information to remember). Extract a clean summary. Always return type "dump".`;
+      ? `The user wants this treated as a todo. Extract the task details: summary (keep it natural, don't over-formalize), due date/time expression exactly as written (e.g. "at 8pm", "next tuesday", "in 3 days" — include times when mentioned), list category (if obvious, lowercase), and priority. Always return type "todo".`
+      : `The user wants this treated as a dump (just information to remember). Extract a clean summary that preserves the user's tone. Always return type "dump".`;
 
   const completion = await getOpenAI().chat.completions.parse({
     model: "gpt-5.2",

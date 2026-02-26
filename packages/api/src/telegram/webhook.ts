@@ -33,6 +33,10 @@ const telegram = new Hono();
 
 telegram.post("/telegram", async (c) => {
   const update: TelegramUpdate = await c.req.json();
+  console.log(
+    "[webhook] received update:",
+    update.message?.text ?? update.callback_query?.data ?? "unknown",
+  );
 
   try {
     if (update.message?.text) {
@@ -45,8 +49,7 @@ telegram.post("/telegram", async (c) => {
       await handleCallbackQuery(update.callback_query);
     }
   } catch (err) {
-    console.error("Webhook error:", err);
-    // Don't throw — always return 200 to Telegram
+    console.error("[webhook] error:", err);
   }
 
   return c.json({ ok: true });
@@ -74,25 +77,39 @@ async function handleTextMessage(
   }
 
   // Classify and save
+  console.log(`[capture] classifying: "${text}"`);
   const result = await captureNote(user.id, text, "telegram", user.timezone);
+  console.log(`[capture] type: ${result.type}, notes: ${result.notes.length}`);
 
-  // Trigger async embedding generation for each note
+  for (const note of result.notes) {
+    console.log(
+      `[capture] note ${note.id}: "${note.summary}", dueAt: ${note.dueAt?.toISOString() ?? "none"}`,
+    );
+  }
+
+  // Trigger async jobs (embedding + scheduled reminder) for each note
   for (const note of result.notes) {
     await inngest.send({
       name: "note/created",
-      data: { noteId: note.id, summary: note.summary ?? text },
+      data: {
+        noteId: note.id,
+        summary: note.summary ?? text,
+        userId: user.id,
+        dueAt: note.dueAt?.toISOString() ?? null,
+      },
     });
   }
+  console.log(`[capture] sent ${result.notes.length} inngest events`);
 
   // Reply with what we parsed
   if (result.type === "todo") {
     const { text: replyText, replyMarkup } = formatTodoReply(result.notes);
     await sendMessage(chatId, replyText, { replyMarkup });
   } else {
-    // Dumps always produce one note
     const { text: replyText, replyMarkup } = formatDumpReply(result.notes[0]!);
     await sendMessage(chatId, replyText, { replyMarkup });
   }
+  console.log("[capture] reply sent");
 }
 
 async function handleSearch(chatId: number, userId: string, query: string) {
@@ -152,8 +169,11 @@ async function handleCallbackQuery(query: {
   try {
     switch (action) {
       case "complete": {
-        await completeNote(noteId);
-        await editMessageText(chatId, messageId, "Done!");
+        const completed = await completeNote(noteId);
+        const summary = completed?.summary ?? "task";
+        await editMessageText(chatId, messageId, `~${summary}~ Done`, {
+          parseMode: "MarkdownV2",
+        });
         await answerCallbackQuery(query.id, "Completed");
         break;
       }
@@ -171,10 +191,15 @@ async function handleCallbackQuery(query: {
         if (updated) {
           const { text, replyMarkup } = formatTodoReply([updated]);
           await editMessageText(chatId, messageId, text, { replyMarkup });
-          // Re-embed with new summary
+          // Re-embed + schedule reminder if it has a due date
           await inngest.send({
             name: "note/updated",
-            data: { noteId: updated.id, summary: updated.summary ?? "" },
+            data: {
+              noteId: updated.id,
+              summary: updated.summary ?? "",
+              userId: user.id,
+              dueAt: updated.dueAt?.toISOString() ?? null,
+            },
           });
         }
         await answerCallbackQuery(query.id, "Converted to task");

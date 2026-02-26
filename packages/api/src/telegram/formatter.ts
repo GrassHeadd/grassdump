@@ -50,7 +50,7 @@ export function formatTodoReply(notes: NoteForReply[]): {
 
   // Each note gets its own row of Undo/Complete buttons
   const keyboard = notes.map((note) => [
-    { text: "Done", callback_data: `complete:${note.id}` },
+    { text: "Complete", callback_data: `complete:${note.id}` },
     { text: "Undo", callback_data: `undo:${note.id}` },
   ]);
 
@@ -103,7 +103,7 @@ export function formatReminderMessage(
   const allTodos = [...overdueTodos, ...dueTodos];
   const keyboard = allTodos.map((t) => [
     {
-      text: `Done: ${truncate(t.summary ?? "", 20)}`,
+      text: `Complete: ${truncate(t.summary ?? "", 20)}`,
       callback_data: `complete:${t.id}`,
     },
     { text: "Tomorrow", callback_data: `tomorrow:${t.id}` },
@@ -153,6 +153,18 @@ export function formatSearchResults(results: SearchResult[]): string {
 // ============================================================
 
 function formatDate(date: Date): string {
+  const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
+
+  if (hasTime) {
+    return date.toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",

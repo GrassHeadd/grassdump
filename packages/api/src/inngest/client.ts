@@ -4,10 +4,20 @@ import { Inngest, EventSchemas } from "inngest";
 // TypeScript uses these to check you're sending the right data with each event.
 type Events = {
   "note/created": {
-    data: { noteId: string; summary: string };
+    data: {
+      noteId: string;
+      summary: string;
+      userId: string;
+      dueAt: string | null; // ISO string or null
+    };
   };
   "note/updated": {
-    data: { noteId: string; summary: string };
+    data: {
+      noteId: string;
+      summary: string;
+      userId: string;
+      dueAt: string | null;
+    };
   };
 };
 
