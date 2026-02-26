@@ -18,6 +18,7 @@ import {
   editNote,
 } from "@repo/service";
 import { router, protectedProcedure } from "../trpc";
+import { inngest } from "../inngest/client";
 
 // ------------------------------------------------------------------
 // Notes router
@@ -33,12 +34,26 @@ export const notesRouter = router({
   create: protectedProcedure
     .input(createNoteInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return captureNote(
+      const result = await captureNote(
         ctx.user.id,
         input.rawInput,
         input.source,
         ctx.user.timezone,
       );
+
+      for (const note of result.notes) {
+        await inngest.send({
+          name: "note/created",
+          data: {
+            noteId: note.id,
+            summary: note.summary ?? input.rawInput,
+            userId: ctx.user.id,
+            dueAt: note.dueAt?.toISOString() ?? null,
+          },
+        });
+      }
+
+      return result;
     }),
 
   // ------------------------------------------------------------------
@@ -98,7 +113,25 @@ export const notesRouter = router({
   flipType: protectedProcedure
     .input(z.object({ id: z.string().uuid(), newType: noteTypeSchema }))
     .mutation(async ({ ctx, input }) => {
-      return flipNoteType(input.id, input.newType, ctx.user.timezone);
+      const updated = await flipNoteType(
+        input.id,
+        input.newType,
+        ctx.user.timezone,
+      );
+
+      if (updated) {
+        await inngest.send({
+          name: "note/updated",
+          data: {
+            noteId: updated.id,
+            summary: updated.summary ?? "",
+            userId: ctx.user.id,
+            dueAt: updated.dueAt?.toISOString() ?? null,
+          },
+        });
+      }
+
+      return updated;
     }),
 
   // ------------------------------------------------------------------
@@ -116,9 +149,23 @@ export const notesRouter = router({
         priority: prioritySchema.nullable().optional(),
       }),
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      return editNote(id, data);
+      const updated = await editNote(id, data);
+
+      if (updated && input.summary) {
+        await inngest.send({
+          name: "note/updated",
+          data: {
+            noteId: updated.id,
+            summary: updated.summary ?? "",
+            userId: ctx.user.id,
+            dueAt: updated.dueAt?.toISOString() ?? null,
+          },
+        });
+      }
+
+      return updated;
     }),
 
   // ------------------------------------------------------------------
