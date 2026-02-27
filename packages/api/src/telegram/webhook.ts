@@ -87,19 +87,22 @@ async function handleTextMessage(
     );
   }
 
-  // Trigger async jobs (embedding + scheduled reminder) for each note
+  // Trigger async jobs (embedding + scheduled reminder) for each note.
+  // Fire-and-forget: don't let Inngest failures block the Telegram reply.
   for (const note of result.notes) {
-    await inngest.send({
-      name: "note/created",
-      data: {
-        noteId: note.id,
-        summary: note.summary ?? text,
-        userId: user.id,
-        dueAt: note.dueAt?.toISOString() ?? null,
-      },
-    });
+    inngest
+      .send({
+        name: "note/created",
+        data: {
+          noteId: note.id,
+          summary: note.summary ?? text,
+          userId: user.id,
+          dueAt: note.dueAt?.toISOString() ?? null,
+        },
+      })
+      .catch((err) => console.error("[inngest] send failed:", err));
   }
-  console.log(`[capture] sent ${result.notes.length} inngest events`);
+  console.log(`[capture] queued ${result.notes.length} inngest events`);
 
   // Reply with what we parsed
   if (result.type === "todo") {
@@ -192,15 +195,17 @@ async function handleCallbackQuery(query: {
           const { text, replyMarkup } = formatTodoReply([updated]);
           await editMessageText(chatId, messageId, text, { replyMarkup });
           // Re-embed + schedule reminder if it has a due date
-          await inngest.send({
-            name: "note/updated",
-            data: {
-              noteId: updated.id,
-              summary: updated.summary ?? "",
-              userId: user.id,
-              dueAt: updated.dueAt?.toISOString() ?? null,
-            },
-          });
+          inngest
+            .send({
+              name: "note/updated",
+              data: {
+                noteId: updated.id,
+                summary: updated.summary ?? "",
+                userId: user.id,
+                dueAt: updated.dueAt?.toISOString() ?? null,
+              },
+            })
+            .catch((err) => console.error("[inngest] send failed:", err));
         }
         await answerCallbackQuery(query.id, "Converted to task");
         break;
