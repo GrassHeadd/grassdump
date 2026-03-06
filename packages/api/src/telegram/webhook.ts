@@ -8,7 +8,7 @@ import {
   search,
 } from "@repo/service";
 import { updateNudgeStatus } from "@repo/db";
-import { inngest } from "../inngest/client";
+import { runNoteJobs } from "../jobs";
 import {
   sendMessage,
   sendChatAction,
@@ -87,22 +87,16 @@ async function handleTextMessage(
     );
   }
 
-  // Trigger async jobs (embedding + scheduled reminder) for each note.
-  // Fire-and-forget: don't let Inngest failures block the Telegram reply.
+  // Trigger async jobs (embedding generation) for each note — fire-and-forget.
   for (const note of result.notes) {
-    inngest
-      .send({
-        name: "note/created",
-        data: {
-          noteId: note.id,
-          summary: note.summary ?? text,
-          userId: user.id,
-          dueAt: note.dueAt?.toISOString() ?? null,
-        },
-      })
-      .catch((err) => console.error("[inngest] send failed:", err));
+    runNoteJobs({
+      noteId: note.id,
+      summary: note.summary ?? text,
+      userId: user.id,
+      dueAt: note.dueAt?.toISOString() ?? null,
+    });
   }
-  console.log(`[capture] queued ${result.notes.length} inngest events`);
+  console.log(`[capture] queued ${result.notes.length} background jobs`);
 
   // Reply with what we parsed
   if (result.type === "todo") {
@@ -194,18 +188,13 @@ async function handleCallbackQuery(query: {
         if (updated) {
           const { text, replyMarkup } = formatTodoReply([updated]);
           await editMessageText(chatId, messageId, text, { replyMarkup });
-          // Re-embed + schedule reminder if it has a due date
-          inngest
-            .send({
-              name: "note/updated",
-              data: {
-                noteId: updated.id,
-                summary: updated.summary ?? "",
-                userId: user.id,
-                dueAt: updated.dueAt?.toISOString() ?? null,
-              },
-            })
-            .catch((err) => console.error("[inngest] send failed:", err));
+          // Re-embed with updated summary
+          runNoteJobs({
+            noteId: updated.id,
+            summary: updated.summary ?? "",
+            userId: user.id,
+            dueAt: updated.dueAt?.toISOString() ?? null,
+          });
         }
         await answerCallbackQuery(query.id, "Converted to task");
         break;

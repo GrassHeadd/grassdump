@@ -18,7 +18,7 @@ import {
   editNote,
 } from "@repo/service";
 import { router, protectedProcedure } from "../trpc";
-import { inngest } from "../inngest/client";
+import { runNoteJobs } from "../jobs";
 
 // ------------------------------------------------------------------
 // Notes router
@@ -42,14 +42,11 @@ export const notesRouter = router({
       );
 
       for (const note of result.notes) {
-        await inngest.send({
-          name: "note/created",
-          data: {
-            noteId: note.id,
-            summary: note.summary ?? input.rawInput,
-            userId: ctx.user.id,
-            dueAt: note.dueAt?.toISOString() ?? null,
-          },
+        runNoteJobs({
+          noteId: note.id,
+          summary: note.summary ?? input.rawInput,
+          userId: ctx.user.id,
+          dueAt: note.dueAt?.toISOString() ?? null,
         });
       }
 
@@ -120,14 +117,11 @@ export const notesRouter = router({
       );
 
       if (updated) {
-        await inngest.send({
-          name: "note/updated",
-          data: {
-            noteId: updated.id,
-            summary: updated.summary ?? "",
-            userId: ctx.user.id,
-            dueAt: updated.dueAt?.toISOString() ?? null,
-          },
+        runNoteJobs({
+          noteId: updated.id,
+          summary: updated.summary ?? "",
+          userId: ctx.user.id,
+          dueAt: updated.dueAt?.toISOString() ?? null,
         });
       }
 
@@ -154,14 +148,11 @@ export const notesRouter = router({
       const updated = await editNote(id, data);
 
       if (updated && input.summary) {
-        await inngest.send({
-          name: "note/updated",
-          data: {
-            noteId: updated.id,
-            summary: updated.summary ?? "",
-            userId: ctx.user.id,
-            dueAt: updated.dueAt?.toISOString() ?? null,
-          },
+        runNoteJobs({
+          noteId: updated.id,
+          summary: updated.summary ?? "",
+          userId: ctx.user.id,
+          dueAt: updated.dueAt?.toISOString() ?? null,
         });
       }
 

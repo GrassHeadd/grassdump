@@ -32,7 +32,7 @@ export async function captureNote(
   source: Source,
   timezone: string = "UTC",
 ) {
-  const classification = await classifyAndParse(rawInput);
+  const classification = await classifyAndParse(rawInput, timezone);
 
   const createdNotes = [];
 

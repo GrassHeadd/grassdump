@@ -15,10 +15,7 @@ export async function getOrCreateUserByTelegramId(telegramId: number) {
 
   if (existing.length > 0) return existing[0]!;
 
-  const created = await db
-    .insert(users)
-    .values({ telegramId })
-    .returning();
+  const created = await db.insert(users).values({ telegramId }).returning();
 
   return created[0]!;
 }
@@ -250,10 +247,7 @@ export async function getExpiredSnoozes() {
     .select()
     .from(notes)
     .where(
-      and(
-        eq(notes.nudgeStatus, "snoozed"),
-        lte(notes.snoozeUntil, new Date()),
-      ),
+      and(eq(notes.nudgeStatus, "snoozed"), lte(notes.snoozeUntil, new Date())),
     );
 }
 
@@ -315,4 +309,28 @@ export async function getTodosDueSoon(withinHours: number = 24) {
       ),
     )
     .orderBy(asc(notes.dueAt));
+}
+
+export async function getTodosJustDue() {
+  const now = new Date();
+
+  return db
+    .select({
+      note: notes,
+      user: users,
+    })
+    .from(notes)
+    .innerJoin(users, eq(notes.userId, users.id))
+    .where(
+      and(
+        eq(notes.type, "todo"),
+        eq(notes.status, "pending"),
+        lte(notes.dueAt, now),
+        isNull(notes.reminderSentAt),
+      ),
+    );
+}
+
+export async function markReminderSent(noteId: string) {
+  return updateNote(noteId, { reminderSentAt: new Date() });
 }

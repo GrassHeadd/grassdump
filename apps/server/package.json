@@ -13,7 +13,6 @@
     "@repo/api": "workspace:*",
     "@repo/db": "workspace:*",
     "dotenv": "^17.3.1",
-    "hono": "^4.11.7",
-    "inngest": "^3.52.0"
+    "hono": "^4.11.7"
   }
 }
