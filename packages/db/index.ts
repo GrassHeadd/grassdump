@@ -1,3 +1,6 @@
 export { db, type Database } from "./src/client";
-export * from "./src/schema";
-export * from "./src/queries";
+// Models
+export * from "./src/models";
+// DAOs
+export * from "./src/dao/notes";
+export * from "./src/dao/users";

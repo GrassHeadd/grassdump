@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
+import * as schema from "./models";
 
 // postgres() creates a connection pool to your Neon database.
 // A pool keeps a few connections open and reuses them instead of
