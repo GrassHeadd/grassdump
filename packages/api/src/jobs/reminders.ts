@@ -26,11 +26,27 @@ export async function checkAndSendReminders(deps: {
       continue;
     }
 
-    const { text, replyMarkup } = formatReminderMessage(
-      [{ id: note.id, summary: note.summary, dueAt: note.dueAt }],
-      [],
-    );
-    await deps.sendMessage(user.telegramId, text, { replyMarkup });
+    // Use the AI-generated reminder text if available, fall back to template
+    if (note.reminderText) {
+      const replyMarkup = {
+        inline_keyboard: [
+          [
+            { text: "done", callback_data: `complete:${note.id}` },
+            { text: "tmr", callback_data: `tomorrow:${note.id}` },
+          ],
+        ],
+      };
+      await deps.sendMessage(user.telegramId, note.reminderText, {
+        replyMarkup,
+      });
+    } else {
+      const { text, replyMarkup } = formatReminderMessage(
+        [{ id: note.id, summary: note.summary, dueAt: note.dueAt }],
+        [],
+      );
+      await deps.sendMessage(user.telegramId, text, { replyMarkup });
+    }
+
     await deps.markReminderSent(note.id);
     sent++;
   }

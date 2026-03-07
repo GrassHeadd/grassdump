@@ -1,4 +1,10 @@
-import { classifyAndParse, reparseAsType, generateEmbedding } from "@repo/ai";
+import {
+  classifyAndParse,
+  reparseAsType,
+  generateEmbedding,
+  runAgentLoop,
+} from "@repo/ai";
+import type { AgentResult, ToolExecutor } from "@repo/ai";
 import { resolveDateExpression } from "@repo/core";
 import type { Source, NoteType } from "@repo/core";
 import {
@@ -13,6 +19,7 @@ import {
   getTodosUpcoming,
   getDumpFeed,
   getRecentDumps,
+  getRecentNotes,
   semanticSearch as dbSearch,
   getDistinctLists,
 } from "@repo/db";
@@ -161,4 +168,119 @@ export async function editNote(
   });
 
   return updated;
+}
+
+// ============================================================
+// AGENT-BASED MESSAGE PROCESSING
+// ============================================================
+// Replaces captureNote for the Telegram flow.
+// The agent sees recent notes as context, decides what to do
+// (create, update, search, complete), and writes a casual reply.
+
+export async function processMessage(
+  userId: string,
+  rawInput: string,
+  source: Source,
+  timezone: string,
+): Promise<AgentResult> {
+  const recentNotes = await getRecentNotes(userId, 20);
+
+  const notesContext = recentNotes.map((n) => ({
+    id: n.id,
+    summary: n.summary,
+    type: n.type,
+    status: n.status,
+    dueAt: n.dueAt,
+    list: n.list,
+    priority: n.priority,
+  }));
+
+  const executeTool: ToolExecutor = async (name, args) => {
+    try {
+      switch (name) {
+        case "create_todo": {
+          const dueAt = args.dueExpression
+            ? resolveDateExpression(
+                args.dueExpression as string,
+                new Date(),
+                timezone,
+              )
+            : null;
+
+          const note = await createNote({
+            userId,
+            rawInput,
+            summary: (args.summary as string) ?? null,
+            type: "todo",
+            source,
+            status: "pending",
+            list: args.list ? (args.list as string).toLowerCase().trim() : null,
+            dueAt,
+            priority: (args.priority as "low" | "normal" | "high") ?? "normal",
+            reminderText: (args.reminderText as string) ?? null,
+          });
+
+          return { success: true, data: note };
+        }
+
+        case "create_dump": {
+          const note = await createNote({
+            userId,
+            rawInput,
+            summary: (args.summary as string) ?? null,
+            type: "dump",
+            source,
+            status: null,
+            list: null,
+            dueAt: null,
+            priority: null,
+          });
+
+          return { success: true, data: note };
+        }
+
+        case "update_note": {
+          const noteId = args.noteId as string;
+          const updates: Record<string, unknown> = {};
+
+          if (args.summary) updates.summary = args.summary;
+          if (args.list)
+            updates.list = (args.list as string).toLowerCase().trim();
+          if (args.priority) updates.priority = args.priority;
+          if (args.status) updates.status = args.status;
+          if (args.reminderText) updates.reminderText = args.reminderText;
+
+          if (args.dueExpression) {
+            updates.dueAt = resolveDateExpression(
+              args.dueExpression as string,
+              new Date(),
+              timezone,
+            );
+          }
+
+          const updated = await updateNote(noteId, updates);
+          return { success: true, data: updated };
+        }
+
+        case "complete_note": {
+          const completed = await dbComplete(args.noteId as string);
+          return { success: true, data: completed };
+        }
+
+        case "search": {
+          const queryEmbedding = await generateEmbedding(args.query as string);
+          const results = await dbSearch(userId, queryEmbedding, 5);
+          return { success: true, data: results };
+        }
+
+        default:
+          return { success: false, error: `Unknown tool: ${name}` };
+      }
+    } catch (err) {
+      console.error(`[agent] tool ${name} failed:`, err);
+      return { success: false, error: String(err) };
+    }
+  };
+
+  return runAgentLoop(rawInput, timezone, notesContext, executeTool);
 }

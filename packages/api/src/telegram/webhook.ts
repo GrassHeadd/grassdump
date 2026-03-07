@@ -1,11 +1,10 @@
 import { Hono } from "hono";
 import { getOrCreateUserByTelegramId } from "@repo/db";
 import {
-  captureNote,
+  processMessage,
   flipNoteType,
   completeNote,
   cancelNote,
-  search,
 } from "@repo/service";
 import { updateNudgeStatus } from "@repo/db";
 import { runNoteJobs } from "../jobs";
@@ -19,7 +18,7 @@ import {
 import {
   formatTodoReply,
   formatDumpReply,
-  formatSearchResults,
+  buildAgentKeyboard,
 } from "./formatter";
 
 const telegram = new Hono();
@@ -70,73 +69,34 @@ async function handleTextMessage(
   // Look up or create the user
   const user = await getOrCreateUserByTelegramId(telegramUserId);
 
-  // If it looks like a question, search instead of capture
-  if (looksLikeQuestion(text)) {
-    await handleSearch(chatId, user.id, text);
-    return;
-  }
-
-  // Classify and save
-  console.log(`[capture] classifying: "${text}"`);
-  const result = await captureNote(user.id, text, "telegram", user.timezone);
-  console.log(`[capture] type: ${result.type}, notes: ${result.notes.length}`);
-
-  for (const note of result.notes) {
-    console.log(
-      `[capture] note ${note.id}: "${note.summary}", dueAt: ${note.dueAt?.toISOString() ?? "none"}`,
-    );
-  }
-
-  // Trigger async jobs (embedding generation) for each note — fire-and-forget.
-  for (const note of result.notes) {
-    runNoteJobs({
-      noteId: note.id,
-      summary: note.summary ?? text,
-      userId: user.id,
-      dueAt: note.dueAt?.toISOString() ?? null,
-    });
-  }
-  console.log(`[capture] queued ${result.notes.length} background jobs`);
-
-  // Reply with what we parsed
-  if (result.type === "todo") {
-    const { text: replyText, replyMarkup } = formatTodoReply(result.notes);
-    await sendMessage(chatId, replyText, { replyMarkup });
-  } else {
-    const { text: replyText, replyMarkup } = formatDumpReply(result.notes[0]!);
-    await sendMessage(chatId, replyText, { replyMarkup });
-  }
-  console.log("[capture] reply sent");
-}
-
-async function handleSearch(chatId: number, userId: string, query: string) {
-  const results = await search(userId, query);
-  const text = formatSearchResults(
-    results.map((r: Record<string, unknown>) => ({
-      id: r.id as string,
-      summary: r.summary as string | null,
-      type: r.type as string,
-      similarity: Number(r.similarity),
-    })),
+  // Run the agent loop — it decides whether to create, update, search, or complete
+  console.log(`[agent] processing: "${text}"`);
+  const result = await processMessage(user.id, text, "telegram", user.timezone);
+  console.log(
+    `[agent] reply: "${result.reply}", actions: ${result.actions.length}`,
   );
-  await sendMessage(chatId, text);
-}
 
-// Simple heuristic: if it contains "?" or starts with a question word, treat as search.
-function looksLikeQuestion(text: string): boolean {
-  if (text.includes("?")) return true;
-  const lower = text.toLowerCase().trim();
-  const questionWords = [
-    "what",
-    "where",
-    "when",
-    "who",
-    "how",
-    "which",
-    "find",
-    "search",
-  ];
-  return questionWords.some((w) => lower.startsWith(w + " "));
+  // Trigger embedding jobs for any created/updated notes
+  for (const action of result.actions) {
+    if (
+      action.type === "created_todo" ||
+      action.type === "created_dump" ||
+      action.type === "updated_note"
+    ) {
+      const note = action.note;
+      runNoteJobs({
+        noteId: note.id as string,
+        summary: (note.summary as string) ?? text,
+        userId: user.id,
+        dueAt: note.dueAt ? (note.dueAt as Date).toISOString() : null,
+      });
+    }
+  }
+
+  // Send the agent's reply with action-based keyboard
+  const replyMarkup = buildAgentKeyboard(result.actions);
+  await sendMessage(chatId, result.reply, { replyMarkup });
+  console.log("[agent] reply sent");
 }
 
 // ============================================================

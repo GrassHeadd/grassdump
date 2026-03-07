@@ -58,6 +58,7 @@ export const notes = pgTable(
     nudgedAt: timestamp("nudged_at", { withTimezone: true }),
     snoozeUntil: timestamp("snooze_until", { withTimezone: true }),
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    reminderText: text("reminder_text"),
     telegramMessageId: bigint("telegram_message_id", { mode: "number" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

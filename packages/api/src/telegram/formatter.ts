@@ -1,4 +1,5 @@
-import type { InlineKeyboardMarkup } from "./api";
+import type { InlineKeyboardMarkup, InlineKeyboardButton } from "./api";
+import type { Action } from "@repo/ai";
 
 // ============================================================
 // TYPES
@@ -26,32 +27,47 @@ type TodoForReminder = {
 };
 
 // ============================================================
-// CAPTURE REPLIES (what the bot sends after you message it)
+// CAPTURE REPLIES
 // ============================================================
 
 export function formatTodoReply(notes: NoteForReply[]): {
   text: string;
   replyMarkup: InlineKeyboardMarkup;
 } {
-  const lines = notes.map((note, i) => {
-    let line = `${notes.length > 1 ? `${i + 1}. ` : ""}${note.summary}`;
-    if (note.dueAt) {
-      line += ` — Due: ${formatDate(note.dueAt)}`;
-    }
-    if (note.list) {
-      line += ` — List: ${titleCase(note.list)}`;
-    }
+  if (notes.length === 1) {
+    const note = notes[0]!;
+    let text = `got it — ${note.summary?.toLowerCase()}`;
+    if (note.dueAt) text += `, ${formatDate(note.dueAt)}`;
+    if (note.list) text += ` (${note.list})`;
+
+    return {
+      text,
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            { text: "done", callback_data: `complete:${note.id}` },
+            { text: "undo", callback_data: `undo:${note.id}` },
+          ],
+        ],
+      },
+    };
+  }
+
+  const lines = notes.map((note) => {
+    let line = `- ${note.summary?.toLowerCase()}`;
+    if (note.dueAt) line += `, ${formatDate(note.dueAt)}`;
+    if (note.list) line += ` (${note.list})`;
     return line;
   });
 
-  const header =
-    notes.length === 1 ? "Saved todo:" : `Saved ${notes.length} todos:`;
-  const text = `${header}\n${lines.join("\n")}`;
+  const text = `got it, ${notes.length} things:\n${lines.join("\n")}`;
 
-  // Each note gets its own row of Undo/Complete buttons
   const keyboard = notes.map((note) => [
-    { text: "Complete", callback_data: `complete:${note.id}` },
-    { text: "Undo", callback_data: `undo:${note.id}` },
+    {
+      text: `done: ${truncate(note.summary ?? "", 18)}`,
+      callback_data: `complete:${note.id}`,
+    },
+    { text: "undo", callback_data: `undo:${note.id}` },
   ]);
 
   return { text, replyMarkup: { inline_keyboard: keyboard } };
@@ -61,15 +77,13 @@ export function formatDumpReply(note: NoteForReply): {
   text: string;
   replyMarkup: InlineKeyboardMarkup;
 } {
-  const text = `Noted: "${note.summary}"`;
-
   return {
-    text,
+    text: `noted — ${note.summary?.toLowerCase()}`,
     replyMarkup: {
       inline_keyboard: [
         [
-          { text: "Actually a task", callback_data: `flip:${note.id}` },
-          { text: "Undo", callback_data: `undo:${note.id}` },
+          { text: "actually a task", callback_data: `flip:${note.id}` },
+          { text: "undo", callback_data: `undo:${note.id}` },
         ],
       ],
     },
@@ -77,7 +91,7 @@ export function formatDumpReply(note: NoteForReply): {
 }
 
 // ============================================================
-// REMINDER / NUDGE MESSAGES (sent by cron jobs)
+// REMINDER / NUDGE MESSAGES
 // ============================================================
 
 export function formatReminderMessage(
@@ -87,26 +101,29 @@ export function formatReminderMessage(
   const lines: string[] = [];
 
   if (overdueTodos.length > 0) {
-    lines.push(`Overdue (${overdueTodos.length}):`);
-    overdueTodos.forEach((t) => lines.push(`  - ${t.summary}`));
-    lines.push("");
+    lines.push(
+      overdueTodos.length === 1 ? "this is overdue:" : "these are overdue:",
+    );
+    overdueTodos.forEach((t) => lines.push(`- ${t.summary?.toLowerCase()}`));
+    if (dueTodos.length > 0) lines.push("");
   }
 
   if (dueTodos.length > 0) {
-    lines.push(`Due today (${dueTodos.length}):`);
-    dueTodos.forEach((t) => lines.push(`  - ${t.summary}`));
+    lines.push(
+      dueTodos.length === 1 ? "hey, this is due:" : "heads up, due today:",
+    );
+    dueTodos.forEach((t) => lines.push(`- ${t.summary?.toLowerCase()}`));
   }
 
   const text = lines.join("\n");
 
-  // Flatten all todos into button rows
   const allTodos = [...overdueTodos, ...dueTodos];
   const keyboard = allTodos.map((t) => [
     {
-      text: `Complete: ${truncate(t.summary ?? "", 20)}`,
+      text: `done: ${truncate(t.summary ?? "", 18)}`,
       callback_data: `complete:${t.id}`,
     },
-    { text: "Tomorrow", callback_data: `tomorrow:${t.id}` },
+    { text: "tmr", callback_data: `tomorrow:${t.id}` },
   ]);
 
   return { text, replyMarkup: { inline_keyboard: keyboard } };
@@ -116,16 +133,16 @@ export function formatNudgeMessage(
   note: { id: string; summary: string | null },
   reason: string,
 ): { text: string; replyMarkup: InlineKeyboardMarkup } {
-  const text = `You mentioned "${note.summary}" a while ago. ${reason}\n\nWant me to make that a task?`;
+  const text = `you mentioned "${note.summary?.toLowerCase()}" a while back — ${reason.toLowerCase()}\n\nwant me to make it a task?`;
 
   return {
     text,
     replyMarkup: {
       inline_keyboard: [
         [
-          { text: "Yes, make it a task", callback_data: `flip:${note.id}` },
-          { text: "Remind later", callback_data: `snooze:${note.id}` },
-          { text: "Dismiss", callback_data: `dismiss:${note.id}` },
+          { text: "yea", callback_data: `flip:${note.id}` },
+          { text: "later", callback_data: `snooze:${note.id}` },
+          { text: "nah", callback_data: `dismiss:${note.id}` },
         ],
       ],
     },
@@ -137,15 +154,58 @@ export function formatNudgeMessage(
 // ============================================================
 
 export function formatSearchResults(results: SearchResult[]): string {
-  if (results.length === 0) return "No results found.";
+  if (results.length === 0) return "nothing found";
 
   const lines = results.map((r, i) => {
-    const type = r.type === "todo" ? "[todo]" : "[dump]";
-    const pct = Math.round(r.similarity * 100);
-    return `${i + 1}. ${type} ${r.summary} (${pct}% match)`;
+    const tag = r.type === "todo" ? "task" : "note";
+    return `${i + 1}. ${r.summary?.toLowerCase()} (${tag})`;
   });
 
   return lines.join("\n");
+}
+
+// ============================================================
+// AGENT KEYBOARD
+// ============================================================
+// Builds inline keyboard buttons from agent actions.
+// The reply text comes from the agent — this only handles buttons.
+
+export function buildAgentKeyboard(
+  actions: Action[],
+): InlineKeyboardMarkup | undefined {
+  const rows: InlineKeyboardButton[][] = [];
+
+  for (const action of actions) {
+    switch (action.type) {
+      case "created_todo": {
+        const id = action.note.id as string;
+        rows.push([
+          { text: "done", callback_data: `complete:${id}` },
+          { text: "undo", callback_data: `undo:${id}` },
+        ]);
+        break;
+      }
+      case "created_dump": {
+        const id = action.note.id as string;
+        rows.push([
+          { text: "actually a task", callback_data: `flip:${id}` },
+          { text: "undo", callback_data: `undo:${id}` },
+        ]);
+        break;
+      }
+      case "updated_note": {
+        const id = action.note.id as string;
+        const type = action.note.type as string;
+        if (type === "todo") {
+          rows.push([{ text: "done", callback_data: `complete:${id}` }]);
+        }
+        break;
+      }
+      // completed_note and search_results don't need buttons
+    }
+  }
+
+  return rows.length > 0 ? { inline_keyboard: rows } : undefined;
 }
 
 // ============================================================
@@ -156,24 +216,24 @@ function formatDate(date: Date): string {
   const hasTime = date.getHours() !== 0 || date.getMinutes() !== 0;
 
   if (hasTime) {
-    return date.toLocaleString("en-US", {
+    return date
+      .toLocaleString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+      .toLowerCase();
+  }
+
+  return date
+    .toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function titleCase(str: string): string {
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+    })
+    .toLowerCase();
 }
 
 function truncate(str: string, len: number): string {

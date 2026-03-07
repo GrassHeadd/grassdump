@@ -41,6 +41,19 @@ export async function findUserByEmail(email: string) {
 }
 
 // ============================================================
+// RECENT NOTES (context for agent)
+// ============================================================
+
+export async function getRecentNotes(userId: string, limit: number = 20) {
+  return db
+    .select()
+    .from(notes)
+    .where(eq(notes.userId, userId))
+    .orderBy(desc(notes.createdAt))
+    .limit(limit);
+}
+
+// ============================================================
 // NOTE CRUD
 // ============================================================
 

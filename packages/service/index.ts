@@ -2,6 +2,7 @@ export {
   captureNote,
   flipNoteType,
   search,
+  processMessage,
   getTodayView,
   getDumpFeed,
   getDistinctLists,
