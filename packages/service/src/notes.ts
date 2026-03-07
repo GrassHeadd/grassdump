@@ -129,7 +129,7 @@ export async function getTodayView(userId: string) {
   return { overdue, today, upcoming, recentDumps };
 }
 
-export { getDumpFeed, getDistinctLists };
+export { getDumpFeed, getDistinctLists, getOverdueTodos, updateNote };
 
 // ============================================================
 // ACTIONS

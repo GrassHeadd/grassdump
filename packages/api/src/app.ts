@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
-import { db } from "@repo/db";
 import { appRouter } from "./routes";
 import { getDevUser } from "./auth";
 import { startCronJobs } from "./jobs";
@@ -23,7 +22,6 @@ app.use(
   trpcServer({
     router: appRouter,
     createContext: async (): Promise<Context> => ({
-      db,
       user: await getDevUser(),
     }),
   }),

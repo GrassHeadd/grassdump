@@ -1,15 +1,12 @@
 import cron from "node-cron";
-import { generateEmbedding } from "@repo/ai";
 import {
-  updateEmbedding,
+  embedNote,
   getTodosDueSoon,
   getTodosJustDue,
   markReminderSent,
   getOverdueTodos,
   findUserById,
   updateNudgeStatus,
-} from "@repo/db";
-import {
   scanForStaleCommitments,
   reactivateExpiredSnoozes,
 } from "@repo/service";
@@ -35,8 +32,7 @@ export function runNoteJobs(data: {
   dueAt: string | null;
 }) {
   // Fire-and-forget — don't block the caller
-  generateEmbedding(data.summary)
-    .then((embedding) => updateEmbedding(data.noteId, embedding))
+  embedNote(data.noteId, data.summary)
     .then(() => console.log(`[jobs] embedding saved for note ${data.noteId}`))
     .catch((err) =>
       console.error(`[jobs] embedding failed for note ${data.noteId}:`, err),

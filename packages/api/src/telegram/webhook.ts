@@ -1,12 +1,13 @@
 import { Hono } from "hono";
-import { getOrCreateUserByTelegramId } from "@repo/db";
 import {
+  getOrCreateUserByTelegramId,
   processMessage,
   flipNoteType,
   completeNote,
   cancelNote,
+  updateNudgeStatus,
+  updateNote,
 } from "@repo/service";
-import { updateNudgeStatus } from "@repo/db";
 import { runNoteJobs } from "../jobs";
 import {
   sendMessage,
@@ -164,8 +165,6 @@ async function handleCallbackQuery(query: {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(9, 0, 0, 0);
-        // Import updateNote dynamically to avoid circular deps
-        const { updateNote } = await import("@repo/db");
         await updateNote(noteId, { dueAt: tomorrow });
         await editMessageText(chatId, messageId, "Rescheduled to tomorrow.");
         await answerCallbackQuery(query.id, "Moved to tomorrow");

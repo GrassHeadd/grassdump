@@ -1,5 +1,4 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import type { Database } from "@repo/db";
 
 // ------------------------------------------------------------------
 // Context
@@ -8,7 +7,6 @@ import type { Database } from "@repo/db";
 // Created fresh for each incoming request.
 
 export type Context = {
-  db: Database;
   user: { id: string; timezone: string } | null;
 };
 

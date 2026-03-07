@@ -1,4 +1,4 @@
-import { getOrCreateUserByTelegramId } from "@repo/db";
+import { getOrCreateUserByTelegramId } from "@repo/service";
 
 // MVP dev-user auth.
 // Looks up the user row by Telegram ID from env.
