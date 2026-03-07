@@ -3,6 +3,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 import { getOpenAI } from "./client";
+import { buildAgentSystemPrompt } from "./prompts/agent";
 
 // ============================================================
 // TYPES
@@ -226,27 +227,13 @@ function buildSystemPrompt(
           .join("\n")
       : "(no recent notes)";
 
-  return `You are a chill friend helping the user keep track of their shit. You talk casual, lowercase, no fluff. You're not a formal assistant — you're like a friend who happens to have a perfect memory.
-
-<context>
-Today: ${dayOfWeek}, ${date}
-Time: ${time} (${timezone})
-</context>
-
-<recent_notes>
-${notesContext}
-</recent_notes>
-
-<instructions>
-- When the user mentions something they already saved (like "the ann thing" or "that eggs task"), match it to a note from recent_notes and use update_note or complete_note instead of creating a new one.
-- When creating a todo with a due date, also write a short fun reminderText — something a friend would text them to nudge them. Keep it casual, relevant to the task, and short.
-- You can call multiple tools in one turn if the user mentions multiple things (e.g. "call mom at 3 and buy milk").
-- For searches, look at the results and summarize the answer conversationally. Don't just list raw results.
-- Your reply text is sent directly to the user. Keep it casual and short. No markdown, no bullet points unless listing multiple items.
-- The user speaks casually. Expect slang, shorthand, Singlish. Don't correct their language.
-- If something is ambiguous between a todo and a dump, lean towards todo if it sounds even slightly actionable.
-- Don't add unnecessary fluff like "sure!" or "of course!" — just do the thing and confirm briefly.
-</instructions>`;
+  return buildAgentSystemPrompt({
+    dayOfWeek,
+    date,
+    time,
+    timezone,
+    notesContext,
+  });
 }
 
 // ============================================================
@@ -273,7 +260,7 @@ export async function runAgentLoop(
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4",
       messages,
       tools,
     });
