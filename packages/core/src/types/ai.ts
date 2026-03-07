@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { noteTypeSchema, prioritySchema } from "./schemas";
+import { noteTypeSchema, prioritySchema } from "./notes";
 
 // --- What the LLM returns for each parsed item ---
 // "call mom tuesday" → { summary: "Call mom", dueExpression: "next tuesday", list: null, priority: "normal" }
@@ -7,7 +7,6 @@ import { noteTypeSchema, prioritySchema } from "./schemas";
 //
 // dueExpression is the RAW string from the LLM ("next tuesday", "in 3 days").
 // We don't let the LLM resolve it to an actual date — that's the date parser's job.
-// This two-step approach avoids LLM hallucinating wrong dates.
 
 export const parsedItemSchema = z.object({
   summary: z.string(),
@@ -22,16 +21,11 @@ export const parsedItemSchema = z.object({
 //
 // "call mom tuesday and buy eggs" →
 // { type: "todo", items: [{ summary: "Call mom", ... }, { summary: "Buy eggs", ... }] }
-//
-// items is always an array, even for single inputs. Keeps the shape consistent
-// so the API doesn't need to handle "is this one item or many?" logic.
 
 export const classificationResponseSchema = z.object({
   type: noteTypeSchema,
   items: z.array(parsedItemSchema),
 });
-
-// --- Inferred types ---
 
 export type ParsedItem = z.infer<typeof parsedItemSchema>;
 export type ClassificationResponse = z.infer<

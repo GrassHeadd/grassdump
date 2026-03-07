@@ -9,7 +9,7 @@ import {
   userSchema,
   createNoteInputSchema,
   updateNoteInputSchema,
-} from "../schemas";
+} from "../types";
 
 // ============================================================
 // ENUM SCHEMAS
@@ -216,7 +216,7 @@ describe("noteSchema", () => {
       "actioned",
       "snoozed",
       "dismissed",
-    ]) {
+    ] as const) {
       const result = noteSchema.parse({ ...validTodo, nudgeStatus: status });
       expect(result.nudgeStatus).toBe(status);
     }

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { parsedItemSchema, classificationResponseSchema } from "../ai-schemas";
+import { parsedItemSchema, classificationResponseSchema } from "../types";
 
 describe("parsedItemSchema", () => {
   test("accepts a full todo item", () => {
