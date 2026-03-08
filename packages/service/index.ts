@@ -14,11 +14,7 @@ export {
   updateNote,
 } from "./src/notes";
 
-export {
-  scanForStaleCommitments,
-  reactivateExpiredSnoozes,
-  updateNudgeStatus,
-} from "./src/nudges";
+export { reactivateExpiredSnoozes, updateNudgeStatus } from "./src/nudges";
 
 export {
   getOrCreateUserByTelegramId,

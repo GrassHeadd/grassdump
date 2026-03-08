@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@hono/trpc-server": "^0.4.2",
-    "@repo/ai": "workspace:*",
     "@repo/core": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/service": "workspace:*",

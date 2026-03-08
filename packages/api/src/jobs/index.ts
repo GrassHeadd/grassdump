@@ -5,16 +5,10 @@ import {
   getTodosJustDue,
   markReminderSent,
   getOverdueTodos,
-  findUserById,
-  updateNudgeStatus,
-  scanForStaleCommitments,
   reactivateExpiredSnoozes,
 } from "@repo/service";
 import { sendMessage } from "../telegram/api";
-import {
-  formatReminderMessage,
-  formatNudgeMessage,
-} from "../telegram/formatter";
+import { formatReminderMessage } from "../telegram/formatter";
 import { checkAndSendReminders } from "./reminders";
 
 // ============================================================
@@ -47,7 +41,10 @@ export function runNoteJobs(data: {
  * Call once at server startup. Registers three crons:
  * 1. Every minute — check for todos that just became due, send reminders
  * 2. Every hour — daily digest (respects user timezone)
- * 3. Daily 9 AM UTC — stale commitment scan
+ *
+ * TODO: add a cron to scan old dumps from non-agent flows (web/API) for
+ * implicit commitments. Agent handles this inline now, but captureNote
+ * doesn't go through the agent.
  */
 export function startCronJobs() {
   // ---- Every minute: poll for due reminders ----
@@ -124,36 +121,6 @@ export function startCronJobs() {
       if (sent > 0) console.log(`[cron:digest] sent ${sent} digest(s)`);
     } catch (err) {
       console.error("[cron:digest] error:", err);
-    }
-  });
-
-  // ---- Daily 9 AM UTC: stale commitment scan ----
-  cron.schedule("0 9 * * *", async () => {
-    try {
-      const flagged = await scanForStaleCommitments();
-
-      let sent = 0;
-
-      for (const { note, reason } of flagged) {
-        const user = await findUserById(note.userId);
-        if (!user?.telegramId) continue;
-
-        const { text, replyMarkup } = formatNudgeMessage(
-          { id: note.id, summary: note.summary },
-          reason,
-        );
-
-        await sendMessage(user.telegramId, text, { replyMarkup });
-        await updateNudgeStatus(note.id, "sent");
-        sent++;
-      }
-
-      if (sent > 0)
-        console.log(
-          `[cron:stale] flagged ${flagged.length}, sent ${sent} nudge(s)`,
-        );
-    } catch (err) {
-      console.error("[cron:stale] error:", err);
     }
   });
 

@@ -103,7 +103,7 @@ Input: "I need flowers for June 3 but get them a few days before"
 
 export async function classifyAndParse(
   rawInput: string,
-  timezone: string = "UTC",
+  timezone: string = "America/New_York",
 ): Promise<ClassificationResponse> {
   const completion = await getOpenAI().chat.completions.parse({
     model: "gpt-5.2",

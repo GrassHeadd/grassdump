@@ -1,4 +1,4 @@
-import { generateEmbedding } from "@repo/ai";
+import { generateEmbedding } from "./agent/embeddings";
 import { updateEmbedding } from "@repo/db";
 
 // Combines AI embedding generation + DB save into one call.

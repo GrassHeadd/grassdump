@@ -1,5 +1,5 @@
 import type { InlineKeyboardMarkup, InlineKeyboardButton } from "./api";
-import type { Action } from "@repo/ai";
+import type { Action } from "@repo/core";
 
 // ============================================================
 // TYPES
